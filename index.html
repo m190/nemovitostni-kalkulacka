@@ -157,11 +157,27 @@
         <input type="number" id="years" value="10" step="1" min="1">
       </div>
       <div class="row">
+        <label>Určit prodejní cenu podle
+          <span class="hint">Zadejte jednu veličinu, zbylé dvě se dopočítají (jako na smpl.cz).</span>
+        </label>
+        <select id="saleDriver">
+          <option value="growth">Růstu cen nemovitostí</option>
+          <option value="yield">Výnosu při prodeji</option>
+          <option value="price">Přímého zadání ceny</option>
+        </select>
+      </div>
+      <div class="row">
         <label>Roční růst cen nemovitostí (% p.a.)</label>
         <input type="number" id="priceGrowth" value="2.5" step="0.1">
       </div>
-      <div class="computed"><span>Cena nemovitosti při prodeji</span><b id="out-salePrice">-</b></div>
-      <div class="computed"><span>Roční tržní výnos při prodeji</span><b id="out-yieldAtSale">-</b></div>
+      <div class="row">
+        <label>Cena nemovitosti při prodeji (Kč)</label>
+        <input type="number" id="salePrice" value="0" step="10000">
+      </div>
+      <div class="row">
+        <label>Roční tržní výnos při prodeji (%)</label>
+        <input type="number" id="yieldSale" value="0" step="0.1">
+      </div>
     </div>
 
     <div class="card">
@@ -172,16 +188,22 @@
         </label>
         <input type="number" id="altReturn" value="7" step="0.1">
       </div>
+      <div class="row">
+        <label>Reinvestovat kladné CF nemovitosti
+          <span class="hint">Zapnuto: kladné průběžné cashflow z nájmu se reinvestuje stejným výnosem jako Akcie/ETF (srovnatelné konečné hodnoty). Vypnuto: kladné CF se jen vybírá (drží se jako hotovost, bez zhodnocení).</span>
+        </label>
+        <input type="checkbox" id="reinvestCF" style="width:auto;height:18px;">
+      </div>
       <div class="computed">
         <span>Počáteční vklad <span class="hint" style="margin:0;">(= vlastní kapitál + reko)</span></span>
         <b id="out-altInitial">-</b>
       </div>
       <div class="computed">
-        <span>Pravidelný měsíční vklad <span class="hint" style="margin:0;">(= měsíční náklady, rostou stejným tempem)</span></span>
+        <span>Pravidelný měsíční vklad <span class="hint" style="margin:0;">(= čistý měsíční odliv u nemovitosti)</span></span>
         <b id="out-altMonthly">-</b>
       </div>
       <div class="note">
-        Používá stejné vstupy jako nemovitost: co by se u nemovitosti vložilo jako vlastní kapitál a rekonstrukce, se zde jednorázově investuje na začátku; co by se platilo jako průběžné náklady, se zde místo toho měsíčně přiinvestovává (roste o stejné roční tempo jako "Roční zvyšování nákladů").
+        Férové srovnání nákladů příležitosti: na začátku se jednorázově investuje totéž co u nemovitosti (vlastní kapitál + reko). Každý měsíc se pak do Akcií/ETF vloží přesně tolik, kolik by nemovitost v daném měsíci vyžadovala doplatit z vlastní kapsy — tj. max(splátka + náklady − nájem, 0). Když nemovitost generuje kladné cashflow, do Akcií/ETF se v daném měsíci nepřidává nic.
       </div>
     </div>
 
@@ -263,9 +285,13 @@
           <div class="label">Zůstatek hypotéky při prodeji</div>
           <div class="value" id="m-balance">-</div>
         </div>
+        <div class="metric">
+          <div class="label">Daň z prodeje (časový test)</div>
+          <div class="value" id="m-saletax">-</div>
+        </div>
       </div>
       <div class="note">
-        Výpočet IRR probíhá měsíčně (peněžní tok v čase 0 = vlastní kapitál + počáteční investice, poté měsíční čisté cashflow, na konci navíc jednorázový příjem z prodeje snížený o zůstatek hypotéky). Zjednodušení oproti originálu: obsazené měsíce se v roce počítají souhrnně (bez konkrétního rozvržení do měsíců) a růst ceny při prodeji je zadáván přímo (bez třícestného provázání polí).
+        Výpočet IRR probíhá měsíčně (peněžní tok v čase 0 = vlastní kapitál + počáteční investice, poté měsíční čisté cashflow, na konci jednorázový příjem z prodeje snížený o zůstatek hypotéky a případnou daň z prodeje). Prodejní cenu lze určit trojím způsobem (růst cen / výnos při prodeji / přímé zadání) — zbylé dvě veličiny se dopočítají. Daň z prodeje: pokud je doba držení kratší než 10 let (časový test není splněn), zdaní se zisk = prodejní cena − (kupní cena + reko) + uplatněné odpisy, sazbou daně z příjmu; při držení 10 a více let je prodej osvobozen. Orientační, nenahrazuje daňové poradenství.
       </div>
     </div>
 
@@ -281,6 +307,18 @@
           <div class="value" id="cmp-alt-irr">-</div>
         </div>
         <div class="metric">
+          <div class="label">Konečná hodnota nemovitost <span style="font-weight:400;color:var(--muted);" id="reTerminal-note">(reinvest. CF)</span></div>
+          <div class="value" id="m-reTerminal">-</div>
+        </div>
+        <div class="metric">
+          <div class="label">Konečná hodnota Akcie/ETF</div>
+          <div class="value" id="m-altFinal">-</div>
+        </div>
+        <div class="metric big">
+          <div class="label">Z toho získáno reinvesticí kladného CF <span style="font-weight:400;color:var(--muted);">(zhodnocení průběžného nájmu)</span></div>
+          <div class="value" id="m-reinvestGain" style="font-size:18px;">-</div>
+        </div>
+        <div class="metric">
           <div class="label">Celkový zisk nemovitost</div>
           <div class="value" id="cmp-re-profit">-</div>
         </div>
@@ -288,18 +326,19 @@
           <div class="label">Celkový zisk Akcie/ETF</div>
           <div class="value" id="cmp-alt-profit">-</div>
         </div>
-        <div class="metric">
-          <div class="label">Celkem vloženo do Akcie/ETF</div>
-          <div class="value" id="m-altContributed">-</div>
-        </div>
-        <div class="metric">
-          <div class="label">Konečná hodnota Akcie/ETF</div>
-          <div class="value" id="m-altFinal">-</div>
+        <div class="metric big">
+          <div class="label">Celkem vloženo z vlastních zdrojů <span style="font-weight:400;color:var(--muted);">(shodné pro obě varianty)</span></div>
+          <div class="value" id="m-altContributed" style="font-size:18px;">-</div>
         </div>
         <div class="metric big" id="cmp-verdict-box">
-          <div class="label">Vítěz</div>
-          <div class="value" id="cmp-verdict">-</div>
+          <div class="label">Vítěz podle IRR (% p.a.)</div>
+          <div class="value" id="cmp-verdict" style="font-size:18px;">-</div>
+          <div class="label" style="margin-top:10px;">Vítěz podle konečné hodnoty (Kč)</div>
+          <div class="value" id="cmp-verdict-wealth" style="font-size:18px;">-</div>
         </div>
+      </div>
+      <div class="note">
+        Obě varianty mají shodný vklad z vlastních zdrojů ve shodných okamžicích (počáteční vklad + doplácení záporného cashflow nemovitosti). Aby byla srovnatelná i konečná hodnota, kladné průběžné cashflow nemovitosti se reinvestuje stejným výnosem jako Akcie/ETF (viz přepínač "reinvestovat kladné CF"). "Celkový zisk" = konečná hodnota − celkem vloženo. Oba pohledy na vítěze se mohou lišit: IRR odměňuje dřívější příjem peněz (implicitně předpokládá reinvestici při sazbě IRR), zatímco konečná hodnota měří skutečné bohatství na konci — pokud se kladné CF nereinvestuje (0 %), může nemovitost vyhrát v IRR, ale prohrát v konečné hodnotě.
       </div>
     </div>
 
@@ -348,11 +387,13 @@
 
 <script>
 const ids = ['price','equity','reko','mortgageYears','mortgageRate','rent','rentGrowth','occupiedMonths',
-             'costs','costGrowth','vacancyStart','years','priceGrowth','altReturn','landPct','taxRate'];
-const selectIds = ['deprMethod','deprGroup'];
+             'costs','costGrowth','vacancyStart','years','priceGrowth','salePrice','yieldSale','altReturn','landPct','taxRate'];
+const selectIds = ['deprMethod','deprGroup','saleDriver'];
+const checkboxIds = ['reinvestCF'];
 const inputs = {};
 ids.forEach(id => { inputs[id] = document.getElementById(id); inputs[id].addEventListener('input', recalc); });
 selectIds.forEach(id => { inputs[id] = document.getElementById(id); inputs[id].addEventListener('change', recalc); });
+checkboxIds.forEach(id => { inputs[id] = document.getElementById(id); inputs[id].addEventListener('change', recalc); });
 
 function fmtK(v){
   if (!isFinite(v)) return '-';
@@ -361,6 +402,14 @@ function fmtK(v){
 function fmtPct(v){
   if (!isFinite(v)) return '-';
   return (v*100).toFixed(2).replace('.', ',') + ' %';
+}
+
+// Zapíše dopočtenou hodnotu do (zamknutého) pole; ovládané pole nechá být
+function setSaleField(id, val, isComputed, decimals){
+  const el = inputs[id];
+  el.disabled = isComputed;
+  el.style.opacity = isComputed ? '0.55' : '1';
+  if (isComputed && isFinite(val)) el.value = decimals>0 ? val.toFixed(decimals) : String(Math.round(val));
 }
 
 function annuityPayment(principal, annualRatePct, years){
@@ -502,15 +551,34 @@ function recalc(){
   document.getElementById('out-yieldAtBuy').textContent = fmtPct(yieldAtBuy);
 
   const T = Math.max(1, Math.round(v.years));
-  const salePrice = price * Math.pow(1+v.priceGrowth/100, T);
-  const rentAtSale = v.rent * Math.pow(1+v.rentGrowth/100, T);
-  const yieldAtSale = salePrice>0 ? (12*rentAtSale)/salePrice : 0;
-  document.getElementById('out-salePrice').textContent = fmtK(salePrice);
-  document.getElementById('out-yieldAtSale').textContent = fmtPct(yieldAtSale);
+  const rentAtSale = v.rent * Math.pow(1+v.rentGrowth/100, T);   // měsíční nájem při prodeji
+  const rentAtSaleAnnual = 12*rentAtSale;
+
+  // Trojcestné provázání: prodejní cena, roční růst cen, výnos při prodeji.
+  // Uživatel zadá jednu veličinu (saleDriver), zbylé dvě se dopočítají.
+  const saleDriver = document.getElementById('saleDriver').value;
+  let salePrice, priceGrowthPct, yieldSalePct;
+  if (saleDriver === 'yield'){
+    yieldSalePct   = v.yieldSale;
+    salePrice      = yieldSalePct>0 ? rentAtSaleAnnual/(yieldSalePct/100) : 0;
+    priceGrowthPct = (price>0 && salePrice>0) ? (Math.pow(salePrice/price, 1/T)-1)*100 : 0;
+  } else if (saleDriver === 'price'){
+    salePrice      = v.salePrice;
+    priceGrowthPct = (price>0 && salePrice>0) ? (Math.pow(salePrice/price, 1/T)-1)*100 : 0;
+    yieldSalePct   = salePrice>0 ? (rentAtSaleAnnual/salePrice)*100 : 0;
+  } else { // 'growth'
+    priceGrowthPct = v.priceGrowth;
+    salePrice      = price * Math.pow(1+priceGrowthPct/100, T);
+    yieldSalePct   = salePrice>0 ? (rentAtSaleAnnual/salePrice)*100 : 0;
+  }
+  setSaleField('priceGrowth', priceGrowthPct, saleDriver!=='growth', 2);
+  setSaleField('salePrice',   salePrice,      saleDriver!=='price',  0);
+  setSaleField('yieldSale',   yieldSalePct,   saleDriver!=='yield',  2);
 
   // Monthly simulation
   const totalMonths = T*12;
   const cashflows = [ -(initialOwn) ];
+  const monthlyNet = [];   // čisté měsíční cashflow nemovitosti (pro srovnání s Akcie/ETF)
   let reinvest = 0, gains = 0;
   const yearly = [];
   let firstPositiveYear = null;
@@ -531,6 +599,7 @@ function recalc(){
       const netM = rentM - costM - mortgageM;
 
       cashflows.push(netM);
+      monthlyNet.push(netM);
       if (netM<0) reinvest += -netM; else gains += netM;
 
       yearRent += rentM; yearCost += costM; yearMortgage += mortgageM; yearNet += netM;
@@ -583,8 +652,24 @@ function recalc(){
   }).join('');
 
   const balanceAtSale = mortgageBalance(mortgageAmount, v.mortgageRate, v.mortgageYears, totalMonths);
-  const saleProfit = salePrice - balanceAtSale;
+
+  // Daň z prodeje: časový test 10 let. Při kratší době držení se zdaní zisk
+  // = prodejní cena − (kupní cena + reko) + uplatněné odpisy (= sale nad daňovou zůstatkovou cenou).
+  const saleTaxable = T < 10;
+  const saleGain = salePrice - (price + reko) + deprTotal;
+  const saleTax = saleTaxable ? Math.max(0, saleGain) * (v.taxRate/100) : 0;
+
+  const saleProfit = salePrice - balanceAtSale - saleTax;
   cashflows[cashflows.length-1] += saleProfit;
+
+  const saleTaxEl = document.getElementById('m-saletax');
+  if (saleTaxable){
+    saleTaxEl.textContent = fmtK(saleTax);
+    saleTaxEl.className = 'value ' + (saleTax>0 ? 'neg':'pos');
+  } else {
+    saleTaxEl.textContent = 'osvobozeno (≥10 let)';
+    saleTaxEl.className = 'value pos';
+  }
 
   const totalPaid = initialOwn + reinvest;
   const totalReceived = gains + saleProfit;
@@ -608,20 +693,20 @@ function recalc(){
   // --- Alternativní investice (Akcie/ETF) — stejné vstupy jako u nemovitosti ---
   const altInitial = initialOwn; // vlastní kapitál + reko
   const rAlt = (v.altReturn/100)/12;
+  const firstDeposit = monthlyNet.length ? Math.max(0, -monthlyNet[0]) : 0;
   document.getElementById('out-altInitial').textContent = fmtK(altInitial);
-  document.getElementById('out-altMonthly').textContent = fmtK(v.costs) + ' / měsíc (rok 1)';
+  document.getElementById('out-altMonthly').textContent = fmtK(firstDeposit) + ' / měsíc (rok 1)';
 
+  // Do Akcií/ETF se každý měsíc vloží tolik, kolik by nemovitost vyžadovala doplatit
+  // z vlastní kapsy = max(splátka + náklady − nájem, 0) = max(−čisté CF, 0).
   let altBalance = altInitial;
   let altContributed = altInitial;
   const altCashflows = [ -altInitial ];
-  for (let y=1; y<=T; y++){
-    const monthlyDeposit = v.costs * Math.pow(1+v.costGrowth/100, y-1);
-    for (let mInYear=1; mInYear<=12; mInYear++){
-      altBalance = altBalance * (1+rAlt);
-      altBalance += monthlyDeposit;
-      altContributed += monthlyDeposit;
-      altCashflows.push(-monthlyDeposit);
-    }
+  for (let i=0; i<monthlyNet.length; i++){
+    const deposit = Math.max(0, -monthlyNet[i]);
+    altBalance = altBalance * (1+rAlt) + deposit;
+    altContributed += deposit;
+    altCashflows.push(-deposit);
   }
   altCashflows[altCashflows.length-1] += altBalance;
 
@@ -630,31 +715,66 @@ function recalc(){
   const altRMonthly = irrMonthly(altCashflows);
   const altIrrAnnual = isFinite(altRMonthly) ? Math.pow(1+altRMonthly,12)-1 : NaN;
 
+  // Konečná hodnota nemovitosti. Když je reinvestice zapnutá, kladné průběžné cashflow
+  // se reinvestuje stejným výnosem jako ETF -> srovnatelné konečné hodnoty. Když je vypnutá,
+  // kladné CF se jen vybírá (drží jako hotovost, 0 % zhodnocení).
+  const reinvestOn = document.getElementById('reinvestCF').checked;
+  const reinvRate = reinvestOn ? rAlt : 0;
+  const nMonths = monthlyNet.length;
+  let reTerminal = 0;
+  for (let i=0; i<nMonths; i++){
+    if (monthlyNet[i] > 0) reTerminal += monthlyNet[i] * Math.pow(1+reinvRate, nMonths-1-i);
+  }
+  reTerminal += saleProfit;            // příjem z prodeje (po dani) na konci, bez reinvestice
+  const reProfitTerminal = reTerminal - totalPaid;
+  // Kolik z konečné hodnoty vzniklo čistě zhodnocením reinvestovaného kladného CF
+  // = reinvestovaná hodnota − stejné CF držené jako hotovost (0 %). Při vypnutí = 0.
+  const reinvestGain = reTerminal - (gains + saleProfit);
+  document.getElementById('reTerminal-note').textContent = reinvestOn ? '(reinvest. CF)' : '(CF nereinvestováno)';
+
   document.getElementById('m-altContributed').textContent = fmtK(altContributed);
   document.getElementById('m-altFinal').textContent = fmtK(altFinal);
+  document.getElementById('m-reTerminal').textContent = fmtK(reTerminal);
+
+  const reinvestGainEl = document.getElementById('m-reinvestGain');
+  if (reinvestOn){
+    reinvestGainEl.textContent = '+ ' + fmtK(reinvestGain);
+    reinvestGainEl.className = 'value pos';
+  } else {
+    reinvestGainEl.textContent = 'bez reinvestice';
+    reinvestGainEl.className = 'value';
+    reinvestGainEl.style.color = 'var(--muted)';
+  }
+  if (reinvestOn) reinvestGainEl.style.color = '';
 
   document.getElementById('cmp-re-irr').textContent = fmtPct(irrAnnual);
   document.getElementById('cmp-alt-irr').textContent = fmtPct(altIrrAnnual);
-  document.getElementById('cmp-re-profit').textContent = fmtK(totalProfit);
+  document.getElementById('cmp-re-profit').textContent = fmtK(reProfitTerminal);
   document.getElementById('cmp-alt-profit').textContent = fmtK(altProfit);
   document.getElementById('m-altContributed').className = 'value';
-  document.getElementById('cmp-re-profit').className = 'value ' + (totalProfit>=0?'pos':'neg');
+  document.getElementById('m-reTerminal').className = 'value ' + (reTerminal>=altFinal?'pos':'');
+  document.getElementById('m-altFinal').className = 'value ' + (altFinal>reTerminal?'pos':'');
+  document.getElementById('cmp-re-profit').className = 'value ' + (reProfitTerminal>=0?'pos':'neg');
   document.getElementById('cmp-alt-profit').className = 'value ' + (altProfit>=0?'pos':'neg');
 
+  // Vítěz podle IRR (% p.a.)
   const verdictEl = document.getElementById('cmp-verdict');
-  const verdictBox = document.getElementById('cmp-verdict-box');
   if (isFinite(irrAnnual) && isFinite(altIrrAnnual)){
     const diff = Math.abs(irrAnnual - altIrrAnnual)*100;
-    if (irrAnnual > altIrrAnnual){
-      verdictEl.textContent = `Nemovitost vychází lépe o ${diff.toFixed(2).replace('.',',')} p.b. p.a.`;
-      verdictEl.className = 'value pos';
-    } else {
-      verdictEl.textContent = `Akcie/ETF vychází lépe o ${diff.toFixed(2).replace('.',',')} p.b. p.a.`;
-      verdictEl.className = 'value pos';
-    }
+    const who = irrAnnual > altIrrAnnual ? 'Nemovitost' : 'Akcie/ETF';
+    verdictEl.textContent = `${who} lépe o ${diff.toFixed(2).replace('.',',')} p.b. p.a.`;
+    verdictEl.className = 'value pos';
   } else {
     verdictEl.textContent = '-';
+    verdictEl.className = 'value';
   }
+
+  // Vítěz podle konečné hodnoty (Kč) — respektuje přepínač reinvestice
+  const verdictWealthEl = document.getElementById('cmp-verdict-wealth');
+  const wealthDiff = Math.abs(reTerminal - altFinal);
+  const wealthWho = reTerminal >= altFinal ? 'Nemovitost' : 'Akcie/ETF';
+  verdictWealthEl.textContent = `${wealthWho} lépe o ${fmtK(wealthDiff)}`;
+  verdictWealthEl.className = 'value pos';
 
   const maxAbs = Math.max(1, ...yearly.map(r=>Math.abs(r.net)));
   const tbody = document.getElementById('yearly-table');
