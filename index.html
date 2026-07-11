@@ -589,26 +589,22 @@ function irrMonthly(cashflows){
     for(let i=0;i<cashflows.length;i++){ total += cashflows[i]/Math.pow(1+r,i); }
     return total;
   }
-  let lo=-0.99, hi=10;
-  let nLo=npv(lo), nHi=npv(hi);
-  if (isNaN(nLo)||isNaN(nHi)) return NaN;
-  if (nLo*nHi>0){
-    // try to find a bracketing interval by scanning
-    let found=false;
-    let prevR=lo, prevN=nLo;
-    for(let r=-0.9; r<=10; r+=0.05){
-      const n=npv(r);
-      if (prevN*n<=0){ lo=prevR; hi=r; found=true; break; }
-      prevR=r; prevN=n;
-    }
-    if(!found) return NaN;
-    nLo = npv(lo); nHi = npv(hi);
-  }
+  // Dolní mez držíme dost blízko 0, aby diskontování dlouhých horizontů nepřeteklo
+  // do Infinity (např. (1+(-0.99))^-360 = 100^360). Kdyby přesto přeteklo, přiblížíme k 0.
+  let lo=-0.9, hi=1.0;
+  let nLo=npv(lo);
+  while(!isFinite(nLo) && lo < -1e-6){ lo/=2; nLo=npv(lo); }
+  let nHi=npv(hi);
+  // Rozšíříme horní mez, dokud nemáme opačná znaménka (nalezení intervalu)
+  let tries=0;
+  while(isFinite(nHi) && nLo*nHi>0 && tries<80){ hi*=1.5; nHi=npv(hi); tries++; }
+  if (!isFinite(nLo) || !isFinite(nHi) || nLo*nHi>0) return NaN;
   for(let iter=0; iter<200; iter++){
     const mid=(lo+hi)/2;
     const nMid=npv(mid);
+    if (!isFinite(nMid)){ lo=mid; continue; }
     if (Math.abs(nMid)<1e-6) return mid;
-    if ((nLo<0 && nMid<0) || (nLo>0 && nMid>0)) { lo=mid; nLo=nMid; } else { hi=mid; }
+    if ((nLo<0)===(nMid<0)) { lo=mid; nLo=nMid; } else { hi=mid; nHi=nMid; }
   }
   return (lo+hi)/2;
 }
